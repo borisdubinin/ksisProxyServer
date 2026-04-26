@@ -19,93 +19,64 @@ public class ProxyHandler implements Runnable {
 
     @Override
     public void run() {
-        try {
+        try (clientSocket) {
             handle();
-        } catch (IOException e) {
-            // Соединение разорвано — это нормально для потоков
-        } finally {
-            closeQuietly(clientSocket);
+        } catch (IOException ignored) {
         }
     }
 
     private void handle() throws IOException {
-        InputStream clientIn = clientSocket.getInputStream();
+        HttpRequest request = HttpRequestParser.parse(clientSocket.getInputStream());
+        if (request == null) return;
+
         OutputStream clientOut = clientSocket.getOutputStream();
 
-        // Читаем заголовки запроса от браузера
-        HttpRequest request = HttpRequestParser.parse(clientIn);
-        if (request == null) return; // Пустой запрос
-
-        String url = request.getUrl();
-        String host = request.getHost();
-        int port = request.getPort();
-
-        // Проверяем чёрный список
-        if (blacklist.isBlocked(host) || blacklist.isBlocked(url)) {
-            HttpResponseWriter.writeBlocked(clientOut, url);
-            logger.log(request.getMethod(), url, 403);
+        if (blacklist.isBlocked(request.host())) {
+            HttpResponseWriter.writeBlocked(clientOut, request.url());
+            logger.log(request.method(), request.url(), 403);
             return;
         }
 
-        // Подключаемся к серверу назначения
-        try (Socket serverSocket = new Socket(host, port)) {
-            OutputStream serverOut = serverSocket.getOutputStream();
-            InputStream serverIn = serverSocket.getInputStream();
+        try (Socket serverSocket = new Socket(request.host(), request.port())) {
+            serverSocket.getOutputStream().write(request.toServerBytes());
+            serverSocket.getOutputStream().flush();
 
-            // Пересылаем запрос: заменяем полный URL на путь (RFC 2616 §5.1.2)
-            serverOut.write(request.toServerBytes());
-            serverOut.flush();
-
-            // Читаем первую строку ответа для журнала
-            int statusCode = readResponseAndRelay(serverIn, clientOut);
-            logger.log(request.getMethod(), url, statusCode);
+            int statusCode = relayResponse(serverSocket.getInputStream(), clientOut);
+            logger.log(request.method(), request.url(), statusCode);
         }
     }
 
-    /**
-     * Транслирует байты от сервера к клиенту.
-     * Считывает код ответа из первой строки, затем гонит всё остальное потоком.
-     * Не буферизует тело — важно для долгих потоков вроде онлайн-радио.
-     */
-    private int readResponseAndRelay(InputStream serverIn, OutputStream clientOut) throws IOException {
-        // Читаем первую строку ответа (статус)
-        StringBuilder statusLine = new StringBuilder();
-        int b;
-        int prev = -1;
+    private int relayResponse(InputStream serverIn, OutputStream clientOut) throws IOException {
+        ByteArrayOutputStream statusLineBuffer = new ByteArrayOutputStream();
+        int b, prev = -1;
         while ((b = serverIn.read()) != -1) {
-            statusLine.append((char) b);
+            statusLineBuffer.write(b);
             if (prev == '\r' && b == '\n') break;
             prev = b;
         }
 
-        // Пишем строку статуса клиенту
-        clientOut.write(statusLine.toString().getBytes());
+        byte[] statusLineBytes = statusLineBuffer.toByteArray();
+        clientOut.write(statusLineBytes);
 
-        int statusCode = parseStatusCode(statusLine.toString());
+        int statusCode = parseStatusCode(new String(statusLineBytes).trim());
 
-        // Гоним весь остальной трафик (заголовки + тело) байт за байтом буферами
         byte[] buf = new byte[BUFFER_SIZE];
         int len;
         while ((len = serverIn.read(buf)) != -1) {
             clientOut.write(buf, 0, len);
             clientOut.flush();
         }
-
         return statusCode;
     }
 
     private int parseStatusCode(String statusLine) {
-        // "HTTP/1.1 200 OK\r\n"
-        try {
-            String[] parts = statusLine.trim().split(" ");
-            if (parts.length >= 2) {
+        String[] parts = statusLine.split(" ", 3);
+        if (parts.length >= 2) {
+            try {
                 return Integer.parseInt(parts[1]);
+            } catch (NumberFormatException ignored) {
             }
-        } catch (NumberFormatException ignored) {}
+        }
         return -1;
-    }
-
-    private void closeQuietly(Closeable c) {
-        try { c.close(); } catch (IOException ignored) {}
     }
 }

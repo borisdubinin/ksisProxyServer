@@ -7,9 +7,8 @@ public class Logger {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("HH:mm:ss");
 
-    public synchronized void log(String method, String url, int statusCode) {
-        String time = LocalTime.now().format(FMT);
+    public void log(String method, String url, int statusCode) {
         String status = statusCode == -1 ? "???" : String.valueOf(statusCode);
-        System.out.printf("[%s] %-6s %s → %s%n", time, method, url, status);
+        System.out.printf("[%s] %-6s %s → %s%n", LocalTime.now().format(FMT), method, url, status);
     }
 }

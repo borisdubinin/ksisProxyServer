@@ -7,78 +7,51 @@ import java.net.URISyntaxException;
 public class HttpRequestParser {
 
     public static HttpRequest parse(InputStream in) throws IOException {
-        // Читаем всё до конца заголовков (\r\n\r\n)
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        int[] window = new int[4];
-        int b;
-        while ((b = in.read()) != -1) {
-            buffer.write(b);
-            window[0] = window[1];
-            window[1] = window[2];
-            window[2] = window[3];
-            window[3] = b;
-            if (window[0] == '\r' && window[1] == '\n'
-             && window[2] == '\r' && window[3] == '\n') {
-                break;
-            }
-        }
+        BufferedReader reader = new BufferedReader(new InputStreamReader(in));
 
-        byte[] raw = buffer.toByteArray();
-        if (raw.length == 0) return null;
+        String requestLine = reader.readLine();
+        if (requestLine == null || requestLine.isBlank()) return null;
 
-        String text = new String(raw);
-        String[] lines = text.split("\r\n");
-        if (lines.length == 0) return null;
-
-        // Первая строка: "GET http://host/path HTTP/1.1"
-        String[] parts = lines[0].split(" ", 3);
+        String[] parts = requestLine.split(" ", 3);
         if (parts.length < 3) return null;
 
         String method  = parts[0];
         String rawUrl  = parts[1];
         String version = parts[2];
 
-        // Разбираем URL
-        String host;
-        int port;
-        String path;
-        try {
-            URI uri = new URI(rawUrl);
-            host = uri.getHost();
-            port = uri.getPort() == -1 ? 80 : uri.getPort();
-
-            // Путь + строка запроса
-            String p = uri.getRawPath();
-            if (p == null || p.isEmpty()) p = "/";
-            String q = uri.getRawQuery();
-            path = q != null ? p + "?" + q : p;
-        } catch (URISyntaxException e) {
-            // Fallback: запрос уже в виде пути (нестандартный клиент)
-            host = extractHostFromHeaders(lines);
-            port = 80;
-            path = rawUrl;
-        }
-
-        if (host == null) return null;
-
-        // Остальные заголовки (без первой строки)
-        // Сохраняем их как есть и добавляем \r\n\r\n
         StringBuilder headers = new StringBuilder();
-        for (int i = 1; i < lines.length; i++) {
-            headers.append(lines[i]).append("\r\n");
+        String line;
+        while ((line = reader.readLine()) != null && !line.isEmpty()) {
+            headers.append(line).append("\r\n");
         }
+        headers.append("\r\n");
         byte[] rawHeaders = headers.toString().getBytes();
 
-        String fullUrl = "http://" + host + (port != 80 ? ":" + port : "") + path;
+        try {
+            URI uri = new URI(rawUrl);
+            String host = uri.getHost();
+            if (host == null) return null;
 
-        return new HttpRequest(method, fullUrl, host, port, path, version, rawHeaders);
+            int port = uri.getPort() == -1 ? 80 : uri.getPort();
+            String path = uri.getRawPath();
+            if (path == null || path.isEmpty()) path = "/";
+            if (uri.getRawQuery() != null) path += "?" + uri.getRawQuery();
+
+            String url = "http://" + host + (port != 80 ? ":" + port : "") + path;
+            return new HttpRequest(method, url, host, port, path, version, rawHeaders);
+
+        } catch (URISyntaxException e) {
+            String host = extractHost(headers.toString());
+            if (host == null) return null;
+            String url = "http://" + host + rawUrl;
+            return new HttpRequest(method, url, host, 80, rawUrl, version, rawHeaders);
+        }
     }
 
-    private static String extractHostFromHeaders(String[] lines) {
-        for (String line : lines) {
+    private static String extractHost(String headers) {
+        for (String line : headers.split("\r\n")) {
             if (line.toLowerCase().startsWith("host:")) {
                 String value = line.substring(5).trim();
-                // Убираем порт если есть
                 int colon = value.indexOf(':');
                 return colon != -1 ? value.substring(0, colon) : value;
             }

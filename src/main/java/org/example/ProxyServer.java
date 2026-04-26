@@ -3,6 +3,8 @@ package org.example;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class ProxyServer {
 
@@ -17,23 +19,23 @@ public class ProxyServer {
     }
 
     public void start() throws IOException {
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
+        try (ServerSocket serverSocket = new ServerSocket(port);
+             ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+
             System.out.println("[Proxy] Listening on port " + port);
-            while (true) {
+
+            while (!serverSocket.isClosed()) {
                 Socket client = serverSocket.accept();
-                new Thread(new ProxyHandler(client, blacklist, logger)).start();
+                executor.submit(new ProxyHandler(client, blacklist, logger));
             }
         }
     }
 
-    static void main(String[] args) throws IOException {
-        Config config = Config.loadFromClasspath("config.properties");
+    public static void main(String[] args) throws IOException {
+        Config config = Config.load("config.properties");
         int port = config.getInt("port", 8080);
         String blacklistPath = config.get("blacklist", "blacklist.txt");
 
-        BlacklistFilter blacklist = new BlacklistFilter(blacklistPath);
-        Logger logger = new Logger();
-
-        new ProxyServer(port, blacklist, logger).start();
+        new ProxyServer(port, new BlacklistFilter(blacklistPath), new Logger()).start();
     }
 }

@@ -1,7 +1,6 @@
 package org.example;
 
 import java.io.*;
-import java.nio.file.*;
 import java.util.Properties;
 
 public class Config {
@@ -12,28 +11,14 @@ public class Config {
         this.props = props;
     }
 
-    public static Config loadFromClasspath(String resourceName) throws IOException {
+    public static Config load(String resourceName) throws IOException {
         Properties props = new Properties();
-        InputStream in = Config.class.getClassLoader().getResourceAsStream(resourceName);
-        if (in != null) {
-            try (in) {
+        try (InputStream in = Config.class.getClassLoader().getResourceAsStream(resourceName)) {
+            if (in != null) {
                 props.load(in);
+            } else {
+                System.out.println("[Config] Not found in classpath: " + resourceName + " (using defaults)");
             }
-        } else {
-            System.out.println("[Config] Resource not found in classpath: " + resourceName + " (using defaults)");
-        }
-        return new Config(props);
-    }
-
-    public static Config load(String filePath) throws IOException {
-        Properties props = new Properties();
-        Path path = Paths.get(filePath);
-        if (Files.exists(path)) {
-            try (InputStream in = Files.newInputStream(path)) {
-                props.load(in);
-            }
-        } else {
-            System.out.println("[Config] File not found: " + filePath + " (using defaults)");
         }
         return new Config(props);
     }

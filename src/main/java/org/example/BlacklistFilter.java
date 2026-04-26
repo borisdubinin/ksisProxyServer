@@ -1,46 +1,42 @@
 package org.example;
 
-import java.io.*;
+import java.io.IOException;
 import java.nio.file.*;
-import java.util.*;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class BlacklistFilter {
 
-    private final List<String> entries = new ArrayList<>();
+    private final Set<String> entries;
 
     public BlacklistFilter(String filePath) {
-        load(filePath);
+        this.entries = load(filePath);
     }
 
-    private void load(String filePath) {
-        Path path = Paths.get(filePath);
+    private static Set<String> load(String filePath) {
+        Path path = Path.of(filePath);
         if (!Files.exists(path)) {
             System.out.println("[Blacklist] File not found: " + filePath + " (no blocking active)");
-            return;
+            return Set.of();
         }
-        try (BufferedReader reader = Files.newBufferedReader(path)) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (!line.isEmpty() && !line.startsWith("#")) {
-                    entries.add(line.toLowerCase());
-                }
-            }
-            System.out.println("[Blacklist] Loaded " + entries.size() + " entries from " + filePath);
+        try (var lines = Files.lines(path)) {
+            Set<String> result = lines
+                    .map(String::trim)
+                    .filter(l -> !l.isEmpty() && !l.startsWith("#"))
+                    .map(String::toLowerCase)
+                    .collect(Collectors.toUnmodifiableSet());
+            System.out.println("[Blacklist] Loaded " + result.size() + " entries from " + filePath);
+            return result;
         } catch (IOException e) {
             System.err.println("[Blacklist] Failed to load: " + e.getMessage());
+            return Set.of();
         }
     }
 
-    public boolean isBlocked(String hostOrUrl) {
-        if (hostOrUrl == null) return false;
-        String lower = hostOrUrl.toLowerCase();
-        for (String entry : entries) {
-            if (lower.equals(entry) || lower.endsWith("." + entry) || lower.contains("/" + entry)
-                    || lower.startsWith(entry + "/") || lower.contains(entry)) {
-                return true;
-            }
-        }
-        return false;
+    public boolean isBlocked(String host) {
+        if (host == null) return false;
+        String lower = host.toLowerCase();
+        if (entries.contains(lower)) return true;
+        return entries.stream().anyMatch(e -> lower.endsWith("." + e));
     }
 }
