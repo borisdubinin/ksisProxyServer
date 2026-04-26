@@ -4,10 +4,6 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-/**
- * Точка входа. Читает конфиг, принимает соединения, запускает потоки.
- * Запуск: java ProxyServer [port]
- */
 public class ProxyServer {
 
     private final int port;

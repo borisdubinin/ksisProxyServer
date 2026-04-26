@@ -3,10 +3,6 @@ package org.example;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
-/**
- * Пишет краткий журнал в консоль.
- * Формат: [HH:mm:ss] METHOD URL → STATUS
- */
 public class Logger {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("HH:mm:ss");

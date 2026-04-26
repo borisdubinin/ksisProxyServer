@@ -3,10 +3,6 @@ package org.example;
 import java.io.*;
 import java.net.Socket;
 
-/**
- * Обрабатывает одно клиентское соединение в отдельном потоке.
- * Разбирает запрос, проверяет чёрный список, пересылает на сервер и обратно.
- */
 public class ProxyHandler implements Runnable {
 
     private static final int BUFFER_SIZE = 8192;

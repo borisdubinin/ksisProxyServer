@@ -4,25 +4,8 @@ import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-/**
- * Читает HTTP-запрос из потока и разбирает его.
- * <p>
- * Браузер через прокси присылает:
- *   GET <a href="http://example.com/path?q=1">...</a> HTTP/1.1\r\n
- *   Host: example.com\r\n
- *   ...
- * <p>
- * Нам нужно:
- * - Извлечь хост и порт для открытия сокета
- * - Извлечь путь (/path?q=1) для передачи серверу назначения
- * - Сохранить остальные заголовки без изменений
- */
 public class HttpRequestParser {
 
-    /**
-     * Читает запрос из потока.
-     * Возвращает null, если поток пустой.
-     */
     public static HttpRequest parse(InputStream in) throws IOException {
         // Читаем всё до конца заголовков (\r\n\r\n)
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();

@@ -3,14 +3,8 @@ package org.example;
 import java.io.IOException;
 import java.io.OutputStream;
 
-/**
- * Формирует HTTP-ответы для отправки браузеру.
- */
 public class HttpResponseWriter {
 
-    /**
-     * Отправляет страницу-заглушку при блокировке.
-     */
     public static void writeBlocked(OutputStream out, String blockedUrl) throws IOException {
         String body = "<!DOCTYPE html><html><head><meta charset='utf-8'>"
             + "<title>Доступ заблокирован</title>"

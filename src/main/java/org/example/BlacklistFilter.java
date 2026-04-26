@@ -4,15 +4,6 @@ import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 
-/**
- * Загружает список заблокированных доменов и URL из файла.
- *
- * Формат файла — по одной записи на строку, строки начинающиеся с # — комментарии.
- * Примеры записей:
- *   example.com          — блокирует весь домен и поддомены
- *   bad.example.com      — блокирует конкретный поддомен
- *   example.com/ads      — блокирует конкретный путь
- */
 public class BlacklistFilter {
 
     private final List<String> entries = new ArrayList<>();
@@ -41,10 +32,6 @@ public class BlacklistFilter {
         }
     }
 
-    /**
-     * Проверяет, заблокирован ли хост или URL.
-     * Проверка по вхождению: запись "example.com" совпадёт с "example.com" и "sub.example.com".
-     */
     public boolean isBlocked(String hostOrUrl) {
         if (hostOrUrl == null) return false;
         String lower = hostOrUrl.toLowerCase();

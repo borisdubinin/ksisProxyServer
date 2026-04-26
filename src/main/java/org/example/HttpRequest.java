@@ -1,8 +1,5 @@
 package org.example;
 
-/**
- * Хранит разобранный HTTP-запрос от браузера.
- */
 public class HttpRequest {
 
     private final String method;   // GET, POST, ...
@@ -24,10 +21,6 @@ public class HttpRequest {
         this.rawHeaders = rawHeaders;
     }
 
-    /**
-     * Формирует байты запроса для сервера назначения.
-     * Заменяет полный URL на путь: GET /path HTTP/1.1
-     */
     public byte[] toServerBytes() {
         String requestLine = method + " " + path + " " + version + "\r\n";
         byte[] lineBytes = requestLine.getBytes();

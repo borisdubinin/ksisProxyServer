@@ -4,9 +4,6 @@ import java.io.*;
 import java.nio.file.*;
 import java.util.Properties;
 
-/**
- * Загружает конфигурацию из .properties файла.
- */
 public class Config {
 
     private final Properties props;
@@ -15,10 +12,6 @@ public class Config {
         this.props = props;
     }
 
-    /**
-     * Загружает конфиг из classpath (src/main/resources при сборке Maven/Gradle).
-     * При запуске достаточно, чтобы файл был в корне classpath.
-     */
     public static Config loadFromClasspath(String resourceName) throws IOException {
         Properties props = new Properties();
         InputStream in = Config.class.getClassLoader().getResourceAsStream(resourceName);
@@ -32,9 +25,6 @@ public class Config {
         return new Config(props);
     }
 
-    /**
-     * Загружает конфиг из файловой системы (для запуска вне classpath).
-     */
     public static Config load(String filePath) throws IOException {
         Properties props = new Properties();
         Path path = Paths.get(filePath);
