@@ -12,9 +12,18 @@ public record HttpRequest(
 
     public byte[] toServerBytes() {
         byte[] requestLine = (method + " " + path + " " + version + "\r\n").getBytes();
-        byte[] result = new byte[requestLine.length + rawHeaders.length];
+
+        String headers = new String(rawHeaders)
+                .replaceFirst("(?i)Connection:.*?\r\n", "Connection: close\r\n");
+
+        if (!headers.toLowerCase().contains("connection:")) {
+            headers = "Connection: close\r\n" + headers;
+        }
+
+        byte[] headerBytes = headers.getBytes();
+        byte[] result = new byte[requestLine.length + headerBytes.length];
         System.arraycopy(requestLine, 0, result, 0, requestLine.length);
-        System.arraycopy(rawHeaders, 0, result, requestLine.length, rawHeaders.length);
+        System.arraycopy(headerBytes, 0, result, requestLine.length, headerBytes.length);
         return result;
     }
 }
