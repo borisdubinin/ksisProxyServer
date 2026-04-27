@@ -1,6 +1,7 @@
 package org.example;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 
 public class HttpResponseWriter {
