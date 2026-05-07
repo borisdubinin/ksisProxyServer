@@ -36,7 +36,7 @@ public class ProxyHandler implements Runnable {
 
         if (blacklist.isBlocked(request.host())) {
             HttpResponseWriter.writeBlocked(clientOut, request.url());
-            logger.log(request.method(), request.url(), 403);
+            logger.log(request.method(), request.url(), new RequestStatus(403, "Forbidden"));
             return;
         }
 
@@ -44,12 +44,12 @@ public class ProxyHandler implements Runnable {
             serverSocket.getOutputStream().write(request.toServerBytes());
             serverSocket.getOutputStream().flush();
 
-            int statusCode = relayResponse(serverSocket.getInputStream(), clientOut);
-            logger.log(request.method(), request.url(), statusCode);
+            RequestStatus status = relayResponse(serverSocket.getInputStream(), clientOut);
+            logger.log(request.method(), request.url(), status);
         }
     }
 
-    private int relayResponse(InputStream serverIn, OutputStream clientOut) throws IOException {
+    private RequestStatus relayResponse(InputStream serverIn, OutputStream clientOut) throws IOException {
         ByteArrayOutputStream statusLineBuffer = new ByteArrayOutputStream();
         int b, prev = -1;
         while ((b = serverIn.read()) != -1) {
@@ -61,7 +61,8 @@ public class ProxyHandler implements Runnable {
         byte[] statusLineBytes = statusLineBuffer.toByteArray();
         clientOut.write(statusLineBytes);
 
-        int statusCode = parseStatusCode(new String(statusLineBytes).trim());
+
+        RequestStatus status = parseStatusString(new String(statusLineBytes).trim());
 
         byte[] buf = new byte[BUFFER_SIZE];
         int len;
@@ -69,17 +70,26 @@ public class ProxyHandler implements Runnable {
             clientOut.write(buf, 0, len);
             clientOut.flush();
         }
-        return statusCode;
+        return status;
     }
 
-    private int parseStatusCode(String statusLine) {
+    private RequestStatus parseStatusString(String statusLine) {
         String[] parts = statusLine.split(" ", 3);
         if (parts.length >= 2) {
+            int statusCode = -1;
             try {
-                return Integer.parseInt(parts[1]);
+                statusCode = Integer.parseInt(parts[1]);
             } catch (NumberFormatException ignored) {
             }
+            String statusMessage = "";
+            if (parts.length == 3) {
+                statusMessage = parts[2];
+            }
+            return new RequestStatus(statusCode, statusMessage);
         }
-        return -1;
+        return null;
+    }
+
+    public record RequestStatus(int code, String message) {
     }
 }
